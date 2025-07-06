@@ -16,7 +16,7 @@ from development_info.register_of_transactions import register_of_transactions
 from development_info.price_orders import price_orders
 
 # Get the data from the devm spreadsheet
-from devm_versions import google_auth, insert_new_data, get_devm, update_log
+from devm_versions import google_auth, insert_new_data, get_devm, update_log, upload_file_to_gdrive, create_drive_folder
 
 # Authenticate with Google
 spreadsheet, docs = google_auth()
@@ -32,11 +32,14 @@ sales_brochure_files_dir = os.path.join(script_dir, "t18m", "sales brochure")
 register_of_transactions_files_dir = os.path.join(script_dir, "t18m", "register of transactions")
 price_lists_files_dir = os.path.join(script_dir, "t18m", "price lists")
 
-# Getting the Database 
-csv_path = os.path.join(script_dir, "HKRE Database.csv")
+parent_folder_id = '1hixECvWsddWgy94PT0y2OQ_-kysAkvya'
+new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
 
-df = pd.read_csv(csv_path)
-file_names = df["File Name"].tolist()
+# Getting the Database 
+# csv_path = os.path.join(script_dir, "HKRE Database.csv")
+
+# df = pd.read_csv(csv_path)
+# file_names = df["File Name"].tolist()
 
 
 def headless_chrome_options() -> Options:
@@ -89,33 +92,33 @@ def agree_terms(driver):
     el_cont.click()
 
 
-def download_pdf(driver, pdf, dir):
+def download_pdf(driver, pdf, dir, parent_folder_id):
     # Get the download directory
     params = {
-                "behavior": "allow",
-                "downloadPath": dir
-            }
+        "behavior": "allow",
+        "downloadPath": dir
+    }
     driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
 
     # Downloading into the file path 
-    for filename, url in pdf.items(): 
-        # Initiate download
+    for filename, url in pdf.items():
         driver.get(url)
 
-        # Else if it doesn't exist then download it 
         while True:
-
             file_path = os.path.join(dir, filename)
             if os.path.exists(file_path):
-                update_log(docs, f"Downloaded: {filename}.\n") 
+                update_log(docs, f"Downloaded: {filename}.\n")
 
-                break  
-            
-            # Wait for 1 second before rechecking
+                
+                upload_file_to_gdrive(file_path, filename, parent_folder_id=parent_folder_id)
+
+                os.remove(file_path)
+                break
+
             time.sleep(1)
-        
-        # Wait 2 seconds before downloading the next file
+
         time.sleep(2)
+
 
 
 
@@ -158,6 +161,9 @@ def main(target_web, version):
     end = len(el_list)
 
     tl_loop = time.time()
+
+    # Create a new drive folder for the new metric job
+    run_folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
 
     
     for j in range(begin, end + 1):
@@ -253,11 +259,14 @@ def main(target_web, version):
 
             # if the property name is not found, then we will update the whole row with the new data
             insert_new_data(sheet, devm)
+            
+            folder_name = f"{devm_nolines['name']}"
+            property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
 
             # Download the necessary pdfs into each file and folder 
-            download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir)
-            download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir)
-            download_pdf(driver, price_orders_pdf, price_lists_files_dir)
+            download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id)
+            download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id)
+            download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id)
        
 
         driver.back()
