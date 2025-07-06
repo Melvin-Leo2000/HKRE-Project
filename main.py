@@ -33,7 +33,6 @@ register_of_transactions_files_dir = os.path.join(script_dir, "t18m", "register 
 price_lists_files_dir = os.path.join(script_dir, "t18m", "price lists")
 
 parent_folder_id = '1hixECvWsddWgy94PT0y2OQ_-kysAkvya'
-new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
 
 # Getting the Database 
 # csv_path = os.path.join(script_dir, "HKRE Database.csv")
@@ -122,7 +121,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id):
 
 
 
-def main(target_web, version):
+def main(target_web, version, run_folder_id):
 
     # Get the database
     devm_df, sheet = get_devm(spreadsheet, version)
@@ -161,10 +160,6 @@ def main(target_web, version):
     end = len(el_list)
 
     tl_loop = time.time()
-
-    # Create a new drive folder for the new metric job
-    run_folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
-
     
     for j in range(begin, end + 1):
         
@@ -280,15 +275,24 @@ if __name__ == "__main__":
     
     # Start by updating the Date of the Scrape in the logs
     today_date = datetime.now().strftime("%Y-%m-%d")
-    update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
+
+    new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
+    folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
+
+    # Create a new drive folder for t18ms
+    t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
     # Begin Scrape for t18m
+    update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
     target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
-    main(target_web, "t18m")
+    main(target_web, "t18m", t18ms)
     update_log(docs, "finished t18m")
+
+    # Create a new drive folder for non-t18ms
+    non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
 
     # Begin Scrape for non-t18m
     update_log(docs, f"For non-t18m\n\n")
     target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    main(target_web, "non-t18m")
+    main(target_web, "non-t18m", non_t18ms)
     update_log(docs, "finished non-t18m and automation")

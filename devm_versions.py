@@ -12,26 +12,31 @@ load_dotenv()
 MAX_RETRIES = 2
 
 def google_auth():
-    # Write the credentials from env variable to a file
-    with open("service_account.json", "w") as f:
-        f.write(os.environ["GOOGLE_CREDS_JSON"])
-
     SCOPES = [
-        'https://www.googleapis.com/auth/spreadsheets', 
-        'https://www.googleapis.com/auth/drive', 
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/documents'
     ]
 
-    creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
-    
-    # Google Sheets Client
+    # Detect environment: GitHub Actions or Local
+    if "GOOGLE_CREDS_JSON" in os.environ:
+        with open("service_account.json", "w") as f:
+            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        cred_path = "service_account.json"
+    else:
+        # Your local path to the service account JSON
+        cred_path = os.getenv("GOOGLE_CREDS")
+
+
+    creds = Credentials.from_service_account_file(cred_path, scopes=SCOPES)
+
+    # Set up clients
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key("1zFijFdFYINqrNm3HJAPp8g86orQuOZuHxbPTNfPLZK8")
-
-    # Google Document Client
     docs = build('docs', 'v1', credentials=creds)
 
     return spreadsheet, docs
+
 
 
 def get_devm(spreadsheet, version):
@@ -117,9 +122,17 @@ def update_log(docs, text):
 
 
 def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
-    creds = Credentials.from_service_account_file(os.environ["GOOGLE_APPLICATION_CREDENTIALS"], scopes=[
-        'https://www.googleapis.com/auth/drive'
-    ])
+    if "GOOGLE_CREDS_JSON" in os.environ:
+        with open("service_account.json", "w") as f:
+            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        cred_path = "service_account.json"
+    else:
+        cred_path = "/Users/melvinleo/Downloads/HKRE App/hkre_bot/HKRE Bot Update.json"
+
+    creds = Credentials.from_service_account_file(
+        cred_path,
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
     drive_service = build('drive', 'v3', credentials=creds)
 
     file_metadata = {'name': filename}
@@ -137,8 +150,15 @@ def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
 
 
 def create_drive_folder(folder_name, parent_id=None):
+    if "GOOGLE_CREDS_JSON" in os.environ:
+        with open("service_account.json", "w") as f:
+            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        cred_path = "service_account.json"
+    else:
+        cred_path = "/Users/melvinleo/Downloads/HKRE App/hkre_bot/HKRE Bot Update.json"
+
     creds = Credentials.from_service_account_file(
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+        cred_path,
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     drive_service = build("drive", "v3", credentials=creds)
