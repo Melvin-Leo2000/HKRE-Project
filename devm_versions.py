@@ -6,7 +6,6 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
 from googleapiclient.http import MediaFileUpload
-import base64
 
 load_dotenv()
 
@@ -20,16 +19,7 @@ def google_auth():
     ]
 
     # Detect environment: GitHub Actions or Local
-    if "GOOGLE_CREDS_JSON" in os.environ:
-        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
-        with open("service_account.json", "wb") as f:
-            f.write(decoded_json)
-        cred_path = "service_account.json"
-    else:
-        cred_path = os.getenv("GOOGLE_CREDS")
-
-
-
+    cred_path = os.getenv("GOOGLE_CREDS_JSON")
     creds = Credentials.from_service_account_file(cred_path, scopes=SCOPES)
 
     # Set up clients
@@ -124,14 +114,8 @@ def update_log(docs, text):
 
 
 def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
-    if "GOOGLE_CREDS_JSON" in os.environ:
-        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
-        with open("service_account.json", "wb") as f:
-            f.write(decoded_json)
-        cred_path = "service_account.json"
-    else:
-        cred_path = os.getenv("GOOGLE_CREDS")
-
+    
+    cred_path = os.getenv("GOOGLE_CREDS_JSON")
     creds = Credentials.from_service_account_file(
         cred_path,
         scopes=["https://www.googleapis.com/auth/drive"]
@@ -154,13 +138,8 @@ def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
 
 def create_drive_folder(folder_name, parent_id=None):
 
-    if "GOOGLE_CREDS_JSON" in os.environ:
-        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
-        with open("service_account.json", "wb") as f:
-            f.write(decoded_json)
-        cred_path = "service_account.json"
-    else:
-        cred_path = os.getenv("GOOGLE_CREDS")
+
+    cred_path = os.getenv("GOOGLE_CREDS_JSON")
 
     creds = Credentials.from_service_account_file(
         cred_path,
