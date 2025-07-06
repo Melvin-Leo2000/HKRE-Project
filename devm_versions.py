@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
 from googleapiclient.http import MediaFileUpload
+import base64
 
 load_dotenv()
 
@@ -20,12 +21,13 @@ def google_auth():
 
     # Detect environment: GitHub Actions or Local
     if "GOOGLE_CREDS_JSON" in os.environ:
-        with open("service_account.json", "w") as f:
-            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
+        with open("service_account.json", "wb") as f:
+            f.write(decoded_json)
         cred_path = "service_account.json"
     else:
-        # Your local path to the service account JSON
         cred_path = os.getenv("GOOGLE_CREDS")
+
 
 
     creds = Credentials.from_service_account_file(cred_path, scopes=SCOPES)
@@ -123,11 +125,12 @@ def update_log(docs, text):
 
 def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
     if "GOOGLE_CREDS_JSON" in os.environ:
-        with open("service_account.json", "w") as f:
-            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
+        with open("service_account.json", "wb") as f:
+            f.write(decoded_json)
         cred_path = "service_account.json"
     else:
-        cred_path = "/Users/melvinleo/Downloads/HKRE App/hkre_bot/HKRE Bot Update.json"
+        cred_path = os.getenv("GOOGLE_CREDS")
 
     creds = Credentials.from_service_account_file(
         cred_path,
@@ -150,12 +153,14 @@ def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
 
 
 def create_drive_folder(folder_name, parent_id=None):
+
     if "GOOGLE_CREDS_JSON" in os.environ:
-        with open("service_account.json", "w") as f:
-            f.write(os.environ["GOOGLE_CREDS_JSON"])
+        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
+        with open("service_account.json", "wb") as f:
+            f.write(decoded_json)
         cred_path = "service_account.json"
     else:
-        cred_path = "/Users/melvinleo/Downloads/HKRE App/hkre_bot/HKRE Bot Update.json"
+        cred_path = os.getenv("GOOGLE_CREDS")
 
     creds = Credentials.from_service_account_file(
         cred_path,
