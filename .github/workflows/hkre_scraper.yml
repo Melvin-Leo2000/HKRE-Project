@@ -1,9 +1,7 @@
 name: HKRE Scheduled Scraper
 
 on:
-  schedule:
-    - cron: '59 23 * * 1'  # Every Monday at 23:59 UTC
-  workflow_dispatch:       # Allow manual trigger from UI
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   run:
