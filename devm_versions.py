@@ -5,28 +5,34 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
+from googleapiclient.http import MediaFileUpload
 
 load_dotenv()
 
 MAX_RETRIES = 2
 
 def google_auth():
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_CREDS")
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 
-              'https://www.googleapis.com/auth/drive', 
-              'https://www.googleapis.com/auth/documents']
+    # Write the credentials from env variable to a file
+    with open("service_account.json", "w") as f:
+        f.write(os.environ["GOOGLE_CREDS_JSON"])
 
-    # Authenticate using the service account JSON file
-    creds = Credentials.from_service_account_file(os.environ["GOOGLE_APPLICATION_CREDENTIALS"], scopes=SCOPES)
+    SCOPES = [
+        'https://www.googleapis.com/auth/spreadsheets', 
+        'https://www.googleapis.com/auth/drive', 
+        'https://www.googleapis.com/auth/documents'
+    ]
+
+    creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
     
     # Google Sheets Client
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key("1zFijFdFYINqrNm3HJAPp8g86orQuOZuHxbPTNfPLZK8")
 
-    # Google Document Client 
+    # Google Document Client
     docs = build('docs', 'v1', credentials=creds)
 
     return spreadsheet, docs
+
 
 def get_devm(spreadsheet, version):
 
@@ -108,6 +114,48 @@ def update_log(docs, text):
         documentId=document_id, body={'requests': requests}
     ).execute()
 
+
+
+def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
+    creds = Credentials.from_service_account_file(os.environ["GOOGLE_APPLICATION_CREDENTIALS"], scopes=[
+        'https://www.googleapis.com/auth/drive'
+    ])
+    drive_service = build('drive', 'v3', credentials=creds)
+
+    file_metadata = {'name': filename}
+    if parent_folder_id:
+        file_metadata['parents'] = [parent_folder_id]
+
+    media = MediaFileUpload(file_path, mimetype='application/pdf')
+    drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+    print(f"Uploaded: {filename}")
+
+
+
+def create_drive_folder(folder_name, parent_id=None):
+    creds = Credentials.from_service_account_file(
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+    drive_service = build("drive", "v3", credentials=creds)
+
+    folder_metadata = {
+        'name': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder'
+    }
+    if parent_id:
+        folder_metadata['parents'] = [parent_id]
+
+    folder = drive_service.files().create(
+        body=folder_metadata,
+        fields='id'
+    ).execute()
+
+    return folder['id']
 
 
 
