@@ -5,7 +5,14 @@ from devm_versions import update_log
 
 def sales_brochure(WEBLOAD_TIMEOUT, docs, devm, el_sb, driver, pdf):
     devm['sb1_date'] = pd.to_datetime(el_sb[0].text[-11:]).strftime('%d %b %Y')
-    devm['sbe_date'] = pd.to_datetime(el_sb[1].text[-11:]).strftime('%d %b %Y')
+
+    try:
+        devm['sbe_date'] = pd.to_datetime(el_sb[1].text[-11:]).strftime('%d %b %Y')
+    except Exception as e:
+        print(f"Skipping invalid date for entry: {el_sb[1].text} — {e}")
+        devm['sbe_date'] = None
+
+    # devm['sbe_date'] = pd.to_datetime(el_sb[1].text[-11:]).strftime('%d %b %Y')
 
     for r in range(2, len(el_sb) - 1):
         devm[f'sb{r - 1}_text'] = el_sb[r].text

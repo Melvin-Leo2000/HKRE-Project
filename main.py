@@ -134,6 +134,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
             os.remove(file_path)
 
         time.sleep(2)
+        update_log(docs, f"Downloaded: {filename}.\n")
 
 
 
