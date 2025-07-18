@@ -22,7 +22,12 @@ from devm_versions import google_auth, insert_new_data, get_devm, update_log, up
 spreadsheet, docs = google_auth()
 
 WEBLOAD_TIMEOUT = 5
-chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
+import os
+import platform
+
+
+chrome_exe_path = "/usr/bin/google-chrome"
+
 
 # Construct the path to the "HKR New Files" directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
