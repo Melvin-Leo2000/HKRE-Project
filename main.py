@@ -95,33 +95,46 @@ def agree_terms(driver):
 
 
 def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
-    # Get the download directory
     params = {
         "behavior": "allow",
         "downloadPath": dir
     }
     driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
 
-    # Downloading into the file path 
     for filename, url in pdf.items():
         driver.get(url)
 
+        file_path = os.path.join(dir, filename)
+        start_time = time.time()
+        prev_size = -1
+
         while True:
-            file_path = os.path.join(dir, filename)
             if os.path.exists(file_path):
-                update_log(docs, f"Downloaded: {filename}.\n")
+                size = os.path.getsize(file_path)
+                if size == prev_size:
+                    break
+                prev_size = size
 
-                
-                # upload_file_to_gdrive(file_path, filename, parent_folder_id=parent_folder_id)
-                upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id)
-
-
-                os.remove(file_path)
+            if time.time() - start_time > 60:  # max wait 60 seconds
+                print(f"Timeout downloading: {filename}")
                 break
 
             time.sleep(1)
 
+        if os.path.exists(file_path):
+            # optional: update_log(docs, f"Downloaded: {filename}.\n")
+            for attempt in range(3):
+                try:
+                    upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id)
+                    break
+                except Exception as e:
+                    print(f"Upload failed for {filename}: {e}")
+                    time.sleep(2)
+
+            os.remove(file_path)
+
         time.sleep(2)
+
 
 
 
