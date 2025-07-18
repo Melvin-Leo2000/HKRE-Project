@@ -16,17 +16,15 @@ from development_info.register_of_transactions import register_of_transactions
 from development_info.price_orders import price_orders
 
 # Get the data from the devm spreadsheet
-from devm_versions import google_auth, insert_new_data, get_devm, update_log, upload_file_to_gdrive, create_drive_folder
+from devm_versions import google_auth, insert_new_data, get_devm, update_log, upload_file_to_gdrive, create_drive_folder, get_drive_service
 
 # Authenticate with Google
 spreadsheet, docs = google_auth()
 
 WEBLOAD_TIMEOUT = 5
-import os
-import platform
-
 
 chrome_exe_path = "/usr/bin/google-chrome"
+# chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
 
 
 # Construct the path to the "HKR New Files" directory
@@ -96,7 +94,7 @@ def agree_terms(driver):
     el_cont.click()
 
 
-def download_pdf(driver, pdf, dir, parent_folder_id):
+def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
     # Get the download directory
     params = {
         "behavior": "allow",
@@ -114,7 +112,9 @@ def download_pdf(driver, pdf, dir, parent_folder_id):
                 update_log(docs, f"Downloaded: {filename}.\n")
 
                 
-                upload_file_to_gdrive(file_path, filename, parent_folder_id=parent_folder_id)
+                # upload_file_to_gdrive(file_path, filename, parent_folder_id=parent_folder_id)
+                upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id)
+
 
                 os.remove(file_path)
                 break
@@ -131,6 +131,8 @@ def main(target_web, version, run_folder_id):
     # Get the database
     devm_df, sheet = get_devm(spreadsheet, version)
     devm_df = devm_df.apply(lambda col: col.map(lambda x: x.replace('\n', '').strip() if isinstance(x, str) else x))
+
+    drive_service = get_drive_service()
 
     # Setup WebDriver
     service = Service()
@@ -264,9 +266,9 @@ def main(target_web, version, run_folder_id):
             property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
 
             # Download the necessary pdfs into each file and folder 
-            download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id)
-            download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id)
-            download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id)
+            download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
+            download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
+            download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
        
 
         driver.back()

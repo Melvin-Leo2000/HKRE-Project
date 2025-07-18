@@ -7,6 +7,11 @@ from googleapiclient.discovery import build
 from datetime import datetime
 from googleapiclient.http import MediaFileUpload
 import base64
+import pickle
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+
 
 load_dotenv()
 
@@ -37,6 +42,43 @@ def google_auth():
     docs = build('docs', 'v1', credentials=creds)
 
     return spreadsheet, docs
+
+
+def get_drive_service():
+    SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+    # Load credentials.json from base64 env
+    if "GOOGLE_OAUTH_JSON" not in os.environ:
+        raise EnvironmentError("GOOGLE_OAUTH_JSON not found in environment variables")
+
+    decoded_json = base64.b64decode(os.environ["GOOGLE_OAUTH_JSON"])
+    with open("oauth_credentials.json", "wb") as f:
+        f.write(decoded_json)
+
+    # Load token.pickle from env if not on disk
+    if not os.path.exists("token.pickle") and "GOOGLE_TOKEN_PICKLE_B64" in os.environ:
+        decoded_token = base64.b64decode(os.environ["GOOGLE_TOKEN_PICKLE_B64"])
+        with open("token.pickle", "wb") as f:
+            f.write(decoded_token)
+
+    creds = None
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file('oauth_credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    return build('drive', 'v3', credentials=creds)
+
+
+
 
 def get_devm(spreadsheet, version):
 
@@ -120,32 +162,23 @@ def update_log(docs, text):
 
 
 
-def upload_file_to_gdrive(file_path, filename, parent_folder_id=None):
-    # cred_path = os.getenv("GOOGLE_CREDS_JSON")
-    creds = Credentials.from_service_account_file(
-        cred_path,
-        scopes=["https://www.googleapis.com/auth/drive"]
-    )
-    drive_service = build('drive', 'v3', credentials=creds)
-
+def upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id=None):
     file_metadata = {'name': filename}
     if parent_folder_id:
         file_metadata['parents'] = [parent_folder_id]
 
     media = MediaFileUpload(file_path, mimetype='application/pdf')
-    drive_service.files().create(
+    file = drive_service.files().create(
         body=file_metadata,
         media_body=media,
         fields='id'
     ).execute()
-    print(f"Uploaded: {filename}")
+    print(f"Uploaded: {filename} (ID: {file.get('id')})")
+
 
 
 
 def create_drive_folder(folder_name, parent_id=None):
-
-
-    # cred_path = os.getenv("GOOGLE_CREDS_JSON")
 
     creds = Credentials.from_service_account_file(
         cred_path,
@@ -166,6 +199,4 @@ def create_drive_folder(folder_name, parent_id=None):
     ).execute()
 
     return folder['id']
-
-
 
