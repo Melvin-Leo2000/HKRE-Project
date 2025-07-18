@@ -9,6 +9,8 @@ jobs:
 
     env:
       GOOGLE_CREDS_JSON: ${{ secrets.GOOGLE_CREDS_JSON }}
+      GOOGLE_OAUTH_JSON: ${{ secrets.GOOGLE_OAUTH_JSON }}
+      GOOGLE_TOKEN_PICKLE_B64: ${{ secrets.GOOGLE_TOKEN_PICKLE_B64 }}
 
     steps:
       - name: Checkout repo
@@ -18,22 +20,26 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y google-chrome-stable
           sudo apt install -y unzip xvfb libxi6 libnss3 libxss1 libindicator7 fonts-liberation libatk-bridge2.0-0 libgtk-3-0
-      
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Decode and write Google credentials
+      - name: Decode and write Google service account credentials
         run: |
           echo "$GOOGLE_CREDS_JSON" | base64 --decode > service_account.json
+
+      - name: Decode and write OAuth credentials and token
+        run: |
+          echo "$GOOGLE_OAUTH_JSON" | base64 --decode > oauth_credentials.json
+          echo "$GOOGLE_TOKEN_PICKLE_B64" | base64 --decode > token.pickle
 
       - name: Run main script
         run: xvfb-run -a python main.py
