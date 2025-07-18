@@ -18,12 +18,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
+      
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y google-chrome-stable
-          sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libnss3 libxss1 libappindicator1 libindicator7
+          sudo apt install -y unzip xvfb libxi6 libnss3 libxss1 libindicator7 fonts-liberation libatk-bridge2.0-0 libgtk-3-0
+      
 
       - name: Install Python dependencies
         run: |
