@@ -239,13 +239,17 @@ def main(target_web, version, run_folder_id):
             
 
         # Remove the new lines so that it does not interfere in the new changes 
-        devm_nolines = {key: value.replace('\n', '').strip() for key, value in devm.items()}
+        devm_nolines = {
+            key: value.replace('\n', '').strip() if isinstance(value, str) else value
+            for key, value in devm.items()
+        }
+
         found = False
         new_file = True
 
         
         for index, row in devm_df.iterrows():
-            if all(value in row.values for value in devm_nolines.values()):
+            if all(value in row.values for value in devm_nolines.values() if value is not None):
                 print(f"{devm_nolines['name']}: No Changes")
                 found = True
                 break
@@ -253,7 +257,7 @@ def main(target_web, version, run_folder_id):
             # Checks whether the property name is found inside the devm sheet
             elif devm_nolines['name'] == row.iloc[0]:
                 new_file = False
-                file_name = f"Row {index}: {devm_nolines['name']}"
+                
                 
                 new_updates = []
                 for key, value in devm_nolines.items():
