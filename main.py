@@ -108,6 +108,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
         start_time = time.time()
         prev_size = -1
 
+        # Wait for file to fully download
         while True:
             if os.path.exists(file_path):
                 size = os.path.getsize(file_path)
@@ -115,30 +116,31 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
                     break
                 prev_size = size
 
-            if time.time() - start_time > 120:  # max wait 60 seconds
+            if time.time() - start_time > 120:
                 update_log(docs, f"Timeout downloading: {filename}")
                 print(f"Timeout downloading: {filename}")
                 break
 
             time.sleep(1)
 
+        # Proceed to upload if file exists
         if os.path.exists(file_path):
-
             update_log(docs, f"Downloaded: {filename}.\n")
+
+            # Upload with retry and exponential backoff
             for attempt in range(3):
                 try:
                     upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id)
                     break
                 except Exception as e:
-                    print(f"Upload failed for {filename}: {e}")
-                    time.sleep(2)
+                    print(f"Upload failed for {filename}, attempt {attempt+1}: {e}")
+                    time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
 
             os.remove(file_path)
 
-        time.sleep(2)
+        time.sleep(3)  # Add delay between downloads to reduce API stress
+
         
-
-
 
 
 
