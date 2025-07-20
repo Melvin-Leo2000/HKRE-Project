@@ -23,8 +23,8 @@ spreadsheet, docs = google_auth()
 
 WEBLOAD_TIMEOUT = 5
 
-# chrome_exe_path = "/usr/bin/google-chrome"
-chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
+chrome_exe_path = "/usr/bin/google-chrome"
+# chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
 
 
 # Construct the path to the "HKR New Files" directory
