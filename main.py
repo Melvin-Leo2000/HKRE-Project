@@ -23,8 +23,8 @@ spreadsheet, docs = google_auth()
 
 WEBLOAD_TIMEOUT = 5
 
-chrome_exe_path = "/usr/bin/google-chrome"
-# chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
+# chrome_exe_path = "/usr/bin/google-chrome"
+chrome_exe_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe" # Path of chrome.exe in my computer
 
 
 # Construct the path to the "HKR New Files" directory
@@ -115,14 +115,16 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
                     break
                 prev_size = size
 
-            if time.time() - start_time > 60:  # max wait 60 seconds
+            if time.time() - start_time > 120:  # max wait 60 seconds
+                update_log(docs, f"Timeout downloading: {filename}")
                 print(f"Timeout downloading: {filename}")
                 break
 
             time.sleep(1)
 
         if os.path.exists(file_path):
-            # optional: update_log(docs, f"Downloaded: {filename}.\n")
+
+            update_log(docs, f"Downloaded: {filename}.\n")
             for attempt in range(3):
                 try:
                     upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id)
@@ -134,7 +136,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
             os.remove(file_path)
 
         time.sleep(2)
-        update_log(docs, f"Downloaded: {filename}.\n")
+        
 
 
 
@@ -177,18 +179,33 @@ def main(target_web, version, run_folder_id):
     el_list = WebDriverWait(driver, WEBLOAD_TIMEOUT).until(
         lambda driver: driver.find_elements("xpath", "//*[@id='sort_table']/tbody/tr")
     )
+
     begin = 1
     end = len(el_list)
 
     tl_loop = time.time()
     
     for j in range(begin, end + 1):
-        
-        devm = {}
-        tl = time.time()
 
-        # Getting data from the selected developments 
-        el_devm = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/a")
+        # This part is for testing to see if the webpage is fully loaded and we can actually grab the values 
+        success = False
+        for attempt in range(3):  # Try up to 3 times
+            try:
+                devm = {}
+                tl = time.time()
+
+                # Getting data from the selected developments 
+                el_devm = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/a")
+                success = True
+                break  # Exit retry loop if successful
+            
+            except Exception as e:
+                update_log(docs, f"Attempt {attempt + 1} failed for row {j}: {e}\n")
+                time.sleep(2)
+        if not success:
+            update_log(docs, f"Failed to scrape row {j} after 3 attempts.\n")
+            continue
+
         devm['name'] = el_devm.text
         devm['web'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/div/a").get_attribute("href")
         devm['phas'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[2]").text
