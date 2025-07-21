@@ -109,19 +109,30 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
         prev_size = -1
 
         # Wait for file to fully download
+        in_progress_file = file_path + ".crdownload"
+
         while True:
+
             if os.path.exists(file_path):
                 size = os.path.getsize(file_path)
                 if size == prev_size:
                     break
                 prev_size = size
+            
+            # checking if file is actually being downloaded 
+            elif os.path.exists(in_progress_file):
+                update_log(docs, f"Downloading in progress: {filename}, around {time.time()}")
+                time.sleep(10)
+            else:
+                update_log(docs, f"No file found yet: {filename}, around {time.time()}")
 
-            if time.time() - start_time > 120:
+
+            if time.time() - start_time > 300:
                 update_log(docs, f"Timeout downloading: {filename}")
                 print(f"Timeout downloading: {filename}")
                 break
 
-            time.sleep(1)
+            time.sleep(2)
 
         # Proceed to upload if file exists
         if os.path.exists(file_path):
@@ -189,24 +200,17 @@ def main(target_web, version, run_folder_id):
     
     for j in range(begin, end + 1):
 
-        # This part is for testing to see if the webpage is fully loaded and we can actually grab the values 
-        success = False
-        for attempt in range(3):  # Try up to 3 times
-            try:
-                devm = {}
-                tl = time.time()
+        try:
+            devm = {}
+            tl = time.time()
 
-                # Getting data from the selected developments 
-                el_devm = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/a")
-                success = True
-                break  # Exit retry loop if successful
+            # Getting data from the selected developments 
+            el_devm = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/a")
             
-            except Exception as e:
-                update_log(docs, f"Attempt {attempt + 1} failed for row {j}: {e}\n")
-                time.sleep(2)
-        if not success:
-            update_log(docs, f"Failed to scrape row {j} after 3 attempts.\n")
-            continue
+        except Exception as e:
+            update_log(docs, f"Failure to locate the element, breaking the process\n")
+            break
+
 
         devm['name'] = el_devm.text
         devm['web'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/div/a").get_attribute("href")
@@ -330,13 +334,13 @@ if __name__ == "__main__":
     update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
     target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
     main(target_web, "t18m", t18ms)
-    update_log(docs, "finished t18m")
+    update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
-    non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
+    # non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
 
-    # Begin Scrape for non-t18m
-    update_log(docs, f"For non-t18m\n\n")
-    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    main(target_web, "non-t18m", non_t18ms)
-    update_log(docs, "finished non-t18m and automation")
+    # # Begin Scrape for non-t18m
+    # update_log(docs, f"For non-t18m\n\n")
+    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
+    # main(target_web, "non-t18m", non_t18ms)
+    # update_log(docs, "finished non-t18m and automation")
