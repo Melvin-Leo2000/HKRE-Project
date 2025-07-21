@@ -150,7 +150,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
 
 
 
-def main(target_web, version, run_folder_id):
+def main(target_web, version, run_folder_id, j):
 
     # Get the database
     devm_df, sheet = get_devm(spreadsheet, version)
@@ -188,7 +188,6 @@ def main(target_web, version, run_folder_id):
         lambda driver: driver.find_elements("xpath", "//*[@id='sort_table']/tbody/tr")
     )
 
-    j = 1
     end = len(el_list)
 
     tl_loop = time.time()
@@ -297,10 +296,19 @@ def main(target_web, version, run_folder_id):
         
         except Exception as e:
             update_log(docs, f"Critical error at row {j}: {e}\nRetrying in 2 minutes...\n")
-            time.sleep(120)  
+            time.sleep(10) 
+            print(j)
+
+            # in the case of an error, restart the whole process again starting from the jth term
+            j = main(target_web, version, run_folder_id, j)
+
+            # termination logic: if at the jth then just quit 
+            if j == end:
+                return  
 
     update_log(docs, f'Total time: {(time.time() - tl_loop) / 60:.2f} min\n\n')
     driver.quit()
+    return j
 
 
 if __name__ == "__main__":
@@ -314,10 +322,12 @@ if __name__ == "__main__":
     # Create a new drive folder for t18ms
     t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
+    j = 1
+
     # Begin Scrape for t18m
     update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
     target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
-    main(target_web, "t18m", t18ms)
+    main(target_web, "t18m", t18ms, j)
     update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
