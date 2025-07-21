@@ -113,21 +113,16 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
 
         while True:
 
+            time.sleep(5)
+
             if os.path.exists(file_path):
                 size = os.path.getsize(file_path)
                 if size == prev_size:
                     break
                 prev_size = size
-            
-            # checking if file is actually being downloaded 
-            elif os.path.exists(in_progress_file):
-                update_log(docs, f"Downloading in progress: {filename}, around {time.time()}")
-                time.sleep(10)
-            else:
-                update_log(docs, f"No file found yet: {filename}, around {time.time()}")
 
 
-            if time.time() - start_time > 300:
+            if time.time() - start_time > 400:
                 update_log(docs, f"Timeout downloading: {filename}")
                 print(f"Timeout downloading: {filename}")
                 break
@@ -193,127 +188,116 @@ def main(target_web, version, run_folder_id):
         lambda driver: driver.find_elements("xpath", "//*[@id='sort_table']/tbody/tr")
     )
 
-    begin = 1
+    j = 1
     end = len(el_list)
 
     tl_loop = time.time()
     
-    for j in range(begin, end + 1):
-
+    while j <= end:
         try:
             devm = {}
             tl = time.time()
 
             # Getting data from the selected developments 
             el_devm = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/a")
+            devm['name'] = el_devm.text
+            devm['web'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/div/a").get_attribute("href")
+            devm['phas'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[2]").text
+            devm['phasnm'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[3]").text
+            devm['addr'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[4]").text
+            devm['area'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[5]").text
+            devm['date'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[6]").text
             
-        except Exception as e:
-            update_log(docs, f"Failure to locate the element, breaking the process\n")
-            break
+            name_cleaned = devm['name'].replace('\n', '')
+            update_log(docs, f"==== Development {j} {name_cleaned} begins ====\n")
 
 
-        devm['name'] = el_devm.text
-        devm['web'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[1]/div/div/a").get_attribute("href")
-        devm['phas'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[2]").text
-        devm['phasnm'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[3]").text
-        devm['addr'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[4]").text
-        devm['area'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[5]").text
-        devm['date'] = driver.find_element("xpath", f"//*[@id='sort_table']/tbody/tr[{j}]/td[6]").text
-        
-        name_cleaned = devm['name'].replace('\n', '')
-        update_log(docs, f"==== Development {j} {name_cleaned} begins ====\n")
-
-
-        # Navigate to individual development pages
-        page = el_devm.get_attribute("href")
-        driver.get(page)
-
-        # Extract sales brochure information
-        try:
-            el_sb = WebDriverWait(driver, WEBLOAD_TIMEOUT).until(
-                lambda driver: driver.find_element("xpath", "//*[@id='brochure']")
-            )
-        except:
+            # Navigate to individual development pages
+            page = el_devm.get_attribute("href")
             driver.get(page)
 
-        el_sb = []
+            # Extract sales brochure information
+            try:
+                el_sb = WebDriverWait(driver, WEBLOAD_TIMEOUT).until(
+                    lambda driver: driver.find_element("xpath", "//*[@id='brochure']")
+                )
+            except:
+                driver.get(page)
 
-        try:
-            el_sb = WebDriverWait(driver, WEBLOAD_TIMEOUT).until(
-                lambda driver: driver.find_elements("xpath", "//*[@id='brochure']/div[2]/table/tbody/tr")
-            )
-        except:
-            pass
+            el_sb = []
 
-        # Checks if at least three rows are found in the table
-        if len(el_sb) > 2:
+            try:
+                el_sb = WebDriverWait(driver, WEBLOAD_TIMEOUT).until(
+                    lambda driver: driver.find_elements("xpath", "//*[@id='brochure']/div[2]/table/tbody/tr")
+                )
+            except:
+                pass
 
-            # Data from Sales Brochure Table
-            sales_brochure_pdf = {}
-            sales_brochure(WEBLOAD_TIMEOUT, docs, devm, el_sb, driver, sales_brochure_pdf)
+            # Checks if at least three rows are found in the table
+            if len(el_sb) > 2:
+
+                # Data from Sales Brochure Table
+                sales_brochure_pdf = {}
+                sales_brochure(WEBLOAD_TIMEOUT, docs, devm, el_sb, driver, sales_brochure_pdf)
+                
+                # Register of Transactions
+                register_of_transactions_pdf = {}
+                register_of_transactions(WEBLOAD_TIMEOUT, docs, devm, driver, register_of_transactions_pdf)
+
+                # Price Orders
+                price_orders_pdf = {}
+                price_orders(WEBLOAD_TIMEOUT, docs, devm, driver, price_orders_pdf)
+                
+
+            # Remove the new lines so that it does not interfere in the new changes 
+            devm_nolines = {
+                key: value.replace('\n', '').strip() if isinstance(value, str) else value
+                for key, value in devm.items()
+            }
+
+            found = False
+            new_file = True
+
             
-            # Register of Transactions
-            register_of_transactions_pdf = {}
-            register_of_transactions(WEBLOAD_TIMEOUT, docs, devm, driver, register_of_transactions_pdf)
+            for index, row in devm_df.iterrows():
+                if all(value in row.values for value in devm_nolines.values() if value is not None):
+                    print(f"{devm_nolines['name']}: No Changes")
+                    found = True
+                    break
 
-            # Price Orders
-            price_orders_pdf = {}
-            price_orders(WEBLOAD_TIMEOUT, docs, devm, driver, price_orders_pdf)
-            
+                # Checks whether the property name is found inside the devm sheet
+                elif devm_nolines['name'] == row.iloc[0]:
+                    new_file = False
+                    new_updates = [f"{key}: {value}" for key, value in devm_nolines.items() if value not in row.values]
+                            
+                
+            if not found:
+                # Get the name of the new development file
+                if new_file: 
+                    update_log(docs, f"New File: {devm_nolines['name']}\n")
+                
+                else:
+                    update_log(docs, f"Updates to Existing File: {devm_nolines['name']}\n" + '\n'.join([f'updated {u}' for u in new_updates]))
 
-        # Remove the new lines so that it does not interfere in the new changes 
-        devm_nolines = {
-            key: value.replace('\n', '').strip() if isinstance(value, str) else value
-            for key, value in devm.items()
-        }
+                # if the property name is not found, then we will update the whole row with the new data
+                insert_new_data(sheet, devm)
+                
+                folder_name = devm_nolines['name']
+                property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
 
-        found = False
-        new_file = True
-
+                # Download the necessary pdfs into each file and folder 
+                download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
+                download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
+                download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
         
-        for index, row in devm_df.iterrows():
-            if all(value in row.values for value in devm_nolines.values() if value is not None):
-                print(f"{devm_nolines['name']}: No Changes")
-                found = True
-                break
 
-            # Checks whether the property name is found inside the devm sheet
-            elif devm_nolines['name'] == row.iloc[0]:
-                new_file = False
-                
-                
-                new_updates = []
-                for key, value in devm_nolines.items():
-                    if value not in row.values:
-                        new_updates.append(f"{key}: {value}")
-                        
-            
-        if not found:
-            # Get the name of the new development file
-            if new_file: 
-                update_log(docs, f"New File: {devm_nolines['name']}\n")
-            
-            else:
-                # Print changes to the existing development file
-                new_text = f"Updates to Existing File: {devm_nolines['name']}\n"
-                for updates in new_updates:
-                    new_text += f'updated {updates}\n'
-                update_log(docs, new_text)
-
-            # if the property name is not found, then we will update the whole row with the new data
-            insert_new_data(sheet, devm)
-            
-            folder_name = f"{devm_nolines['name']}"
-            property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
-
-            # Download the necessary pdfs into each file and folder 
-            download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
-            download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
-            download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
-       
-
-        driver.back()
-        update_log(docs, f"finished devm {j} in {(time.time() - tl) / 60:.2f} min\n\n")
+            driver.back()
+            update_log(docs, f"finished devm {j} in {(time.time() - tl) / 60:.2f} min\n\n")
+            j += 1 
+        
+        except Exception as e:
+            update_log(docs, f"Critical error at row {j}: {e}\nRetrying in 2 minutes...\n")
+            time.sleep(120)  
 
     update_log(docs, f'Total time: {(time.time() - tl_loop) / 60:.2f} min\n\n')
     driver.quit()
