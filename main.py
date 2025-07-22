@@ -157,20 +157,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
     return timeout_download
         
 
-def rebuffer (target_web, driver):
-    driver.get(target_web)
-
-
-
-def main(target_web, version, run_folder_id, j):
-
-    # Get the database
-    devm_df, sheet = get_devm(spreadsheet, version)
-    devm_df = devm_df.apply(lambda col: col.map(lambda x: x.replace('\n', '').strip() if isinstance(x, str) else x))
-
-    drive_service = get_drive_service()
-
-    # Setup WebDriver
+def launch_web(target_web):
     service = Service()
     options = headless_chrome_options()
     driver = webdriver.Chrome(service=service, options=options)
@@ -193,6 +180,20 @@ def main(target_web, version, run_folder_id, j):
     # agree to terms
     agree_terms(driver)
 
+    return driver
+
+
+
+def main(target_web, version, run_folder_id, j):
+
+    # Get the database
+    devm_df, sheet = get_devm(spreadsheet, version)
+    devm_df = devm_df.apply(lambda col: col.map(lambda x: x.replace('\n', '').strip() if isinstance(x, str) else x))
+
+    drive_service = get_drive_service()
+
+    # Launch the web
+    driver = launch_web(target_web)
     time.sleep(2)
 
     # Fetch the list of items
@@ -301,9 +302,11 @@ def main(target_web, version, run_folder_id, j):
                 
                 # If there is a timeout download, refresh the page and try again
                 if timeout_download:
-                    driver.get(page)
-                    agree_terms(driver)
-                    time.sleep(5)
+                    driver.quit()
+                    time.sleep(2)
+                    
+                    driver = launch_web(target_web)
+                    time.sleep(2)
                     continue
 
                 download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
@@ -316,10 +319,11 @@ def main(target_web, version, run_folder_id, j):
         
         except Exception as e:
             update_log(docs, f"Critical error at row {j}: {e}\nRetrying again...\n")
-            time.sleep(10) 
+            time.sleep(3) 
 
-            # Retresh the page again
-            driver.get(target_web)
+            driver.quit()
+            driver = launch_web(target_web)
+            time.sleep(3)
             continue
 
     update_log(docs, f'Total time: {(time.time() - tl_loop) / 60:.2f} min\n\n')
