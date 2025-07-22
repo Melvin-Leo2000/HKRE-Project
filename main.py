@@ -101,15 +101,14 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
     }
     driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
 
+    timeout_download = False
+
     for filename, url in pdf.items():
         driver.get(url)
 
         file_path = os.path.join(dir, filename)
         start_time = time.time()
         prev_size = -1
-
-        # Wait for file to fully download
-        in_progress_file = file_path + ".crdownload"
 
         while True:
 
@@ -122,12 +121,21 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
                 prev_size = size
 
 
-            if time.time() - start_time > 400:
-                update_log(docs, f"Timeout downloading: {filename}")
+            if time.time() - start_time > 120:
+
+                # Update that there is a timeout download 
+                update_log(docs, f"Timeout downloading: {filename}. Restarting Process...\n")
                 print(f"Timeout downloading: {filename}")
+                timeout_download = True
                 break
 
             time.sleep(2)
+
+
+        # if there is a timeout download
+        if timeout_download:
+            
+            break
 
         # Proceed to upload if file exists
         if os.path.exists(file_path):
@@ -146,7 +154,11 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
 
         time.sleep(3)  # Add delay between downloads to reduce API stress
 
+    return timeout_download
         
+
+def rebuffer (target_web, driver):
+    driver.get(target_web)
 
 
 
@@ -285,7 +297,15 @@ def main(target_web, version, run_folder_id, j):
                 property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
 
                 # Download the necessary pdfs into each file and folder 
-                download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
+                timeout_download = download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
+                
+                # If there is a timeout download, refresh the page and try again
+                if timeout_download:
+                    driver.get(page)
+                    agree_terms(driver)
+                    time.sleep(5)
+                    continue
+
                 download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
                 download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
         
@@ -295,16 +315,12 @@ def main(target_web, version, run_folder_id, j):
             j += 1 
         
         except Exception as e:
-            update_log(docs, f"Critical error at row {j}: {e}\nRetrying in 2 minutes...\n")
+            update_log(docs, f"Critical error at row {j}: {e}\nRetrying again...\n")
             time.sleep(10) 
-            print(j)
 
-            # in the case of an error, restart the whole process again starting from the jth term
-            j = main(target_web, version, run_folder_id, j)
-
-            # termination logic: if at the jth then just quit 
-            if j == end:
-                return  
+            # Retresh the page again
+            driver.get(target_web)
+            continue
 
     update_log(docs, f'Total time: {(time.time() - tl_loop) / 60:.2f} min\n\n')
     driver.quit()
