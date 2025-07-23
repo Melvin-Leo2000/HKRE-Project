@@ -276,6 +276,12 @@ def main(target_web, version, run_folder_id, j):
                 # Price Orders
                 price_orders_pdf = {}
                 price_orders(WEBLOAD_TIMEOUT, docs, devm, driver, price_orders_pdf)
+
+            else:
+                update_log(docs, f"Data not full available. Skipping this development.\n")
+                driver.back()
+                j += 1
+                continue
                 
 
             # Remove the new lines so that it does not interfere in the new changes 
@@ -361,7 +367,7 @@ if __name__ == "__main__":
     # Create a new drive folder for t18ms
     t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
-    j = 1
+    j = 108
 
     # Begin Scrape for t18m
     update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
