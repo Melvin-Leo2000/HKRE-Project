@@ -94,25 +94,40 @@ def agree_terms(driver):
     el_cont.click()
 
 
+
+def safe_driver_get(driver, url, retries=3):
+    for attempt in range(retries):
+        try:
+            driver.get(url)
+            return
+        except Exception as e:
+            if "EOF occurred in violation of protocol" in str(e):
+                time.sleep(2 ** attempt)
+            else:
+                raise e
+    raise Exception(f"Failed to load URL after {retries} retries: {url}")
+
+
 def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
+
     params = {
         "behavior": "allow",
         "downloadPath": dir
     }
-    driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
 
+    driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
     timeout_download = False
 
     for filename, url in pdf.items():
-        driver.get(url)
+        
+        # Ensure that file download is smooth
+        safe_driver_get(driver, url)
 
         file_path = os.path.join(dir, filename)
         start_time = time.time()
         prev_size = -1
 
         while True:
-
-            time.sleep(5)
 
             if os.path.exists(file_path):
                 size = os.path.getsize(file_path)
@@ -121,7 +136,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
                 prev_size = size
 
 
-            if time.time() - start_time > 120:
+            if time.time() - start_time > 300:
 
                 # Update that there is a timeout download 
                 update_log(docs, f"Timeout downloading: {filename}. Restarting Process...\n")
@@ -134,7 +149,6 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
 
         # if there is a timeout download
         if timeout_download:
-            
             break
 
         # Proceed to upload if file exists
@@ -318,9 +332,10 @@ def main(target_web, version, run_folder_id, j):
             j += 1 
         
         except Exception as e:
-            update_log(docs, f"Critical error at row {j}: {e}\nRetrying again...\n")
+            update_log(docs, f"Ran into error at row {j} due to memory overload\n Retrying again...\n\n")
             time.sleep(3) 
 
+            # Restarting the whole process again to avoid memory overload
             driver.quit()
             driver = launch_web(target_web)
             time.sleep(3)
