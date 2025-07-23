@@ -332,13 +332,12 @@ def main(target_web, version, run_folder_id, j):
 
                 download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
                 download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
+                # if the property name is not found, then we will update the whole row with the new data
+                insert_new_data(sheet, devm)
         
 
             driver.back()
             update_log(docs, f"finished devm {j} in {(time.time() - tl) / 60:.2f} min\n\n")
-
-            # if the property name is not found, then we will update the whole row with the new data
-            insert_new_data(sheet, devm)
             j += 1 
         
         except Exception as e:
