@@ -95,17 +95,18 @@ def agree_terms(driver):
 
 
 
-def safe_driver_get(driver, url, retries=3):
+def safe_driver_get(driver, url, retries=2):
     for attempt in range(retries):
         try:
             driver.get(url)
-            return
+            return True  # success
         except Exception as e:
             if "EOF occurred in violation of protocol" in str(e):
                 time.sleep(2 ** attempt)
             else:
                 raise e
-    raise Exception(f"Failed to load URL after {retries} retries: {url}")
+    return False  # failed after retries
+
 
 
 def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
@@ -121,7 +122,9 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
     for filename, url in pdf.items():
         
         # Ensure that file download is smooth
-        safe_driver_get(driver, url)
+        if not safe_driver_get(driver, url):
+            update_log(docs, f"Failed to load {url} after retries, URL likely don't exist. Skipping {filename}.\n")
+            continue
 
         file_path = os.path.join(dir, filename)
         start_time = time.time()
@@ -139,7 +142,7 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
             if time.time() - start_time > 300:
 
                 # Update that there is a timeout download 
-                update_log(docs, f"Timeout downloading: {filename}. Restarting Process...\n")
+                update_log(docs, f"Timeout downloading: {filename}.\nRestarting Process...\n")
                 print(f"Timeout downloading: {filename}")
                 timeout_download = True
                 break
@@ -305,8 +308,6 @@ def main(target_web, version, run_folder_id, j):
                 else:
                     update_log(docs, f"Updates to Existing File: {devm_nolines['name']}\n" + '\n'.join([f'updated {u}' for u in new_updates]))
 
-                # if the property name is not found, then we will update the whole row with the new data
-                insert_new_data(sheet, devm)
                 
                 folder_name = devm_nolines['name']
                 property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
@@ -329,6 +330,9 @@ def main(target_web, version, run_folder_id, j):
 
             driver.back()
             update_log(docs, f"finished devm {j} in {(time.time() - tl) / 60:.2f} min\n\n")
+
+            # if the property name is not found, then we will update the whole row with the new data
+            insert_new_data(sheet, devm)
             j += 1 
         
         except Exception as e:
