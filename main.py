@@ -367,7 +367,7 @@ if __name__ == "__main__":
     # Create a new drive folder for t18ms
     t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
-    j = 108
+    j = 1
 
     # Begin Scrape for t18m
     update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
