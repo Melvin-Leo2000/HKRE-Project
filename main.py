@@ -278,7 +278,7 @@ def main(target_web, version, run_folder_id, j):
                 price_orders(WEBLOAD_TIMEOUT, docs, devm, driver, price_orders_pdf)
 
             else:
-                update_log(docs, f"Data not full available. Skipping this development.\n")
+                update_log(docs, f"Data not full available. Skipping this development.\n\n")
                 driver.back()
                 j += 1
                 continue
@@ -360,25 +360,30 @@ if __name__ == "__main__":
     # Start by updating the Date of the Scrape in the logs
     today_date = datetime.now().strftime("%Y-%m-%d")
 
-    new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
-    folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
+    # new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
+    
+    folder_id = '1_1Y3VUgyk3cOWqHOzn22teepKtz7AnNH'
 
-    # Create a new drive folder for t18ms
-    t18ms = create_drive_folder('t18m files', parent_id=folder_id)
+    # create_drive_folder(new_folder_name, parent_id=parent_folder_id)
 
     j = 1
 
+    # Create a new drive folder for t18ms
+    # t18ms = create_drive_folder('t18m files', parent_id=folder_id)
+
+
+
     # Begin Scrape for t18m
-    update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
-    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
-    main(target_web, "t18m", t18ms, j)
-    update_log(docs, f"finished t18m\n\n")
+    # update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
+    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
+    # main(target_web, "t18m", t18ms, j)
+    # update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
-    # non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
+    non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
 
-    # # Begin Scrape for non-t18m
-    # update_log(docs, f"For non-t18m\n\n")
-    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    # main(target_web, "non-t18m", non_t18ms)
-    # update_log(docs, "finished non-t18m and automation")
+    # Begin Scrape for non-t18m
+    update_log(docs, f"For non-t18m\n\n")
+    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
+    main(target_web, "non-t18m", non_t18ms)
+    update_log(docs, "finished non-t18m and automation")
