@@ -366,7 +366,7 @@ if __name__ == "__main__":
 
     # create_drive_folder(new_folder_name, parent_id=parent_folder_id)
 
-    j = 1
+    j = 71
 
     # Create a new drive folder for t18ms
     # t18ms = create_drive_folder('t18m files', parent_id=folder_id)
@@ -380,7 +380,8 @@ if __name__ == "__main__":
     # update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
-    non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
+    # non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
+    non_t18ms = '1EzMoVfZ-tdub6HcF7BeJC9jQJEeq3xZ7'
 
     # Begin Scrape for non-t18m
     update_log(docs, f"For non-t18m\n\n")
