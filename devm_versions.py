@@ -1,13 +1,14 @@
-import os, time
+import os, json
 from dotenv import load_dotenv
 import gspread
 import pandas as pd
-from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
+from google.oauth2 import service_account
 from googleapiclient.http import MediaFileUpload
 import base64
-import pickle
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -17,65 +18,66 @@ load_dotenv()
 
 MAX_RETRIES = 2
 
-if "GOOGLE_CREDS_JSON" in os.environ:
-        decoded_json = base64.b64decode(os.environ["GOOGLE_CREDS_JSON"])
-        with open("service_account.json", "wb") as f:
-            f.write(decoded_json)
-        cred_path = "service_account.json"
-else:
-    raise EnvironmentError("GOOGLE_CREDS_JSON not found in environment variables")
 
-
+SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/documents",
+]
 
 def google_auth():
-    SCOPES = [
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive',
-        'https://www.googleapis.com/auth/documents'
-    ]
+    raw = os.getenv("GOOGLE_CREDS_JSON")
+    info = json.loads(base64.b64decode(raw).decode("utf-8"))
+    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
 
-    creds = Credentials.from_service_account_file(cred_path, scopes=SCOPES)
+    # sanity check: share your sheet/doc with this email
+    # print("SA:", info["client_email"])
 
-    # Set up clients
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key("1zFijFdFYINqrNm3HJAPp8g86orQuOZuHxbPTNfPLZK8")
-    docs = build('docs', 'v1', credentials=creds)
-
+    docs = build("docs", "v1", credentials=creds)
     return spreadsheet, docs
 
-
 def get_drive_service():
-    SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
-    # Load credentials.json from base64 env
-    if "GOOGLE_OAUTH_JSON" not in os.environ:
-        raise EnvironmentError("GOOGLE_OAUTH_JSON not found in environment variables")
-
-    decoded_json = base64.b64decode(os.environ["GOOGLE_OAUTH_JSON"])
-    with open("oauth_credentials.json", "wb") as f:
-        f.write(decoded_json)
-
-    # Load token.pickle from env if not on disk
-    if not os.path.exists("token.pickle") and "GOOGLE_TOKEN_PICKLE_B64" in os.environ:
-        decoded_token = base64.b64decode(os.environ["GOOGLE_TOKEN_PICKLE_B64"])
-        with open("token.pickle", "wb") as f:
-            f.write(decoded_token)
+    tok_b64 = os.getenv("GOOGLE_TOKEN_JSON_B64")
+    if tok_b64 and not os.path.exists("token.json"):
+        with open("token.json", "wb") as f:
+            f.write(base64.b64decode(tok_b64))
 
     creds = None
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
+    if os.path.exists("token.json"):
+        with open("token.json", "r") as f:
+            data = json.load(f)  # dict
+        try:
+            creds = Credentials.from_authorized_user_info(data, SCOPES)
+        except Exception:
+            creds = None
 
+    # Refresh or re-auth
     if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('oauth_credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
+        try:
+            if creds and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                raise RefreshError("no_valid_token", None)
+        except RefreshError:
+            raw = os.getenv("GOOGLE_OAUTH_JSON")
+            if not raw:
+                raise EnvironmentError("GOOGLE_OAUTH_JSON missing for OAuth re-auth")
+            try:
+                client_cfg = json.loads(base64.b64decode(raw).decode("utf-8"))
+            except Exception:
+                client_cfg = json.loads(raw)
+            flow = InstalledAppFlow.from_client_config(client_cfg, SCOPES)
+            creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
 
-    return build('drive', 'v3', credentials=creds)
+        # Persist refreshed/new creds
+        with open("token.json", "w") as f:
+            f.write(creds.to_json())
+
+    return build("drive", "v3", credentials=creds)
+
 
 
 
@@ -176,27 +178,22 @@ def upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id=N
     print(f"Uploaded: {filename} (ID: {file.get('id')})")
 
 
-
+def _load_creds():
+    # Use base64 token from CI, or token.json locally
+    tok_b64 = os.getenv("GOOGLE_TOKEN_JSON_B64")
+    if tok_b64:
+        data = json.loads(base64.b64decode(tok_b64).decode("utf-8"))
+    else:
+        with open("token.json") as f:
+            data = json.load(f)
+    return Credentials.from_authorized_user_info(data, SCOPES)
 
 def create_drive_folder(folder_name, parent_id=None):
-
-    creds = Credentials.from_service_account_file(
-        cred_path,
-        scopes=["https://www.googleapis.com/auth/drive"]
-    )
-    drive_service = build("drive", "v3", credentials=creds)
-
-    folder_metadata = {
-        'name': folder_name,
-        'mimeType': 'application/vnd.google-apps.folder'
-    }
+    creds = _load_creds()
+    drive = build("drive", "v3", credentials=creds)
+    body = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
     if parent_id:
-        folder_metadata['parents'] = [parent_id]
-
-    folder = drive_service.files().create(
-        body=folder_metadata,
-        fields='id'
-    ).execute()
-
-    return folder['id']
+        body["parents"] = [parent_id]
+    folder = drive.files().create(body=body, fields="id").execute()
+    return folder["id"]
 
