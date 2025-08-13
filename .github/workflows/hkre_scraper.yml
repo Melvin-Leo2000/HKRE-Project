@@ -8,9 +8,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # OAuth client JSON (base64 or plain JSON string)
+      GOOGLE_CREDS_JSON: ${{ secrets.GOOGLE_CREDS_JSON }}
       GOOGLE_OAUTH_JSON: ${{ secrets.GOOGLE_OAUTH_JSON }}
-      # Base64 of token.json generated locally after first auth
       GOOGLE_TOKEN_JSON_B64: ${{ secrets.GOOGLE_TOKEN_JSON_B64 }}
 
     steps:
