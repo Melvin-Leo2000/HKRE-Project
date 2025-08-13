@@ -180,12 +180,12 @@ def upload_file_to_gdrive(file_path, filename, drive_service, parent_folder_id=N
 
 def _load_creds():
     # Use base64 token from CI, or token.json locally
-    tok_b64 = os.getenv("GOOGLE_TOKEN_JSON_B64")
-    if tok_b64:
-        data = json.loads(base64.b64decode(tok_b64).decode("utf-8"))
-    else:
-        with open("token.json") as f:
-            data = json.load(f)
+    # tok_b64 = os.getenv("GOOGLE_TOKEN_JSON_B64")
+    # if tok_b64:
+    #     data = json.loads(base64.b64decode(tok_b64).decode("utf-8"))
+    # else:
+    with open("token.json") as f:
+        data = json.load(f)
     return Credentials.from_authorized_user_info(data, SCOPES)
 
 def create_drive_folder(folder_name, parent_id=None):
