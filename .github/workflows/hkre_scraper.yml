@@ -27,12 +27,13 @@ jobs:
         with:
           chrome-version: stable
 
+          
       - name: Install system dependencies (Java + Xvfb + Chrome deps)
         run: |
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jre-headless xvfb unzip \
-            libnss3 libgconf-2-4 libxi6 libxss1 libatk-bridge2.0-0 libgtk-3-0 \
-            fonts-liberation
+            libnss3 libxss1 libatk-bridge2.0-0 libgtk-3-0 fonts-liberation \
+            libgbm1 libasound2 libu2f-udev xdg-utils
 
       - name: Install Python dependencies
         run: |
