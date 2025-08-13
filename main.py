@@ -14,6 +14,7 @@ from selenium_stealth import stealth
 from development_info.sales_brochure import sales_brochure
 from development_info.register_of_transactions import register_of_transactions
 from development_info.price_orders import price_orders
+from convert_csv.wrapper import convert_into
 
 # Get the data from the devm spreadsheet
 from devm_versions import google_auth, insert_new_data, get_devm, update_log, upload_file_to_gdrive, create_drive_folder, get_drive_service
@@ -109,7 +110,8 @@ def safe_driver_get(driver, url, retries=2):
 
 
 
-def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
+
+def download_pdf(driver, pdf, dir, parent_folder_id, drive_service, prices_folder_id, trans_folder_id):
 
     params = {
         "behavior": "allow",
@@ -166,6 +168,46 @@ def download_pdf(driver, pdf, dir, parent_folder_id, drive_service):
                 except Exception as e:
                     print(f"Upload failed for {filename}, attempt {attempt+1}: {e}")
                     time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+            
+
+            # Convert the PDF and upload the CSV file here
+            # Convert PDF to CSV in temp location
+
+            filename = os.path.basename(file_path)
+            name_upper = filename.upper()
+            if name_upper.endswith(("PO.PDF", "PR.PDF", "RT.PDF")):
+                csv_temp_path = os.path.join(dir, os.path.splitext(filename)[0] + ".csv")
+
+                try:
+                    convert_into(file_path, csv_temp_path, pages='all', stream=True)
+                    ok = os.path.exists(csv_temp_path)
+                except Exception as e:
+                    print(f"[ERROR] Conversion failed for {filename}: {e}")
+                    ok = False
+
+
+                if ok:
+                    name_upper = filename.upper()
+                    if ("PO.PDF" in name_upper) or ("PR.PDF" in name_upper):
+                        gdrive_folder_id = prices_folder_id
+                    elif "RT.PDF" in name_upper:
+                        gdrive_folder_id = trans_folder_id
+                    else:
+                        gdrive_folder_id = prices_folder_id  # default if unknown
+
+                    try:
+                        upload_file_to_gdrive(csv_temp_path, os.path.basename(csv_temp_path), drive_service, gdrive_folder_id)
+
+                        # delete the csv file after downloading
+                        try:
+                            if os.path.exists(csv_temp_path):
+                                os.remove(csv_temp_path)
+                        except Exception as e:
+                            print(f"[WARN] Could not remove temp CSV {csv_temp_path}: {e}")
+
+                    except Exception as e:
+                        print(f"[ERROR] Failed to upload CSV for {filename}: {e}")
+            
 
             os.remove(file_path)
 
@@ -202,6 +244,12 @@ def launch_web(target_web):
 
 
 def main(target_web, version, run_folder_id, j):
+
+    
+    # Create folder for prices and transactions
+    # All PO and PR converted files will be put into this folders
+    prices = create_drive_folder('Prices', parent_id=run_folder_id)
+    transactions = create_drive_folder('Transactions', parent_id=run_folder_id)
 
     # Get the database
     devm_df, sheet = get_devm(spreadsheet, version)
@@ -319,7 +367,7 @@ def main(target_web, version, run_folder_id, j):
                 property_folder_id = create_drive_folder(folder_name, parent_id=run_folder_id)
 
                 # Download the necessary pdfs into each file and folder 
-                timeout_download = download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service)
+                timeout_download = download_pdf(driver, sales_brochure_pdf, sales_brochure_files_dir, property_folder_id, drive_service, prices, transactions)
                 
                 # If there is a timeout download, refresh the page and try again
                 if timeout_download:
@@ -330,8 +378,8 @@ def main(target_web, version, run_folder_id, j):
                     time.sleep(2)
                     continue
 
-                download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service)
-                download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service)
+                download_pdf(driver, register_of_transactions_pdf, register_of_transactions_files_dir, property_folder_id, drive_service, prices, transactions)
+                download_pdf(driver, price_orders_pdf, price_lists_files_dir, property_folder_id, drive_service, prices, transactions)
                 # if the property name is not found, then we will update the whole row with the new data
                 insert_new_data(sheet, devm)
         
@@ -360,31 +408,26 @@ if __name__ == "__main__":
     # Start by updating the Date of the Scrape in the logs
     today_date = datetime.now().strftime("%Y-%m-%d")
 
-    # new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
-    
-    folder_id = '1_1Y3VUgyk3cOWqHOzn22teepKtz7AnNH'
-
-    # create_drive_folder(new_folder_name, parent_id=parent_folder_id)
-
-    j = 71
+    new_folder_name = f"Metric Job - {datetime.today().strftime('%Y-%m-%d')}"
+    folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
 
     # Create a new drive folder for t18ms
-    # t18ms = create_drive_folder('t18m files', parent_id=folder_id)
+    t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
-
+    j = 1
+    
 
     # Begin Scrape for t18m
-    # update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
-    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
-    # main(target_web, "t18m", t18ms, j)
-    # update_log(docs, f"finished t18m\n\n")
+    update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
+    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
+    main(target_web, "t18m", t18ms, j)
+    update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
     # non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
-    non_t18ms = '1EzMoVfZ-tdub6HcF7BeJC9jQJEeq3xZ7'
 
-    # Begin Scrape for non-t18m
-    update_log(docs, f"For non-t18m\n\n")
-    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    main(target_web, "non-t18m", non_t18ms, j)
-    update_log(docs, "finished non-t18m and automation")
+    # # Begin Scrape for non-t18m
+    # update_log(docs, f"For non-t18m\n\n")
+    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
+    # main(target_web, "non-t18m", non_t18ms)
+    # update_log(docs, "finished non-t18m and automation")

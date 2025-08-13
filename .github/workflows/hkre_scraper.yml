@@ -1,45 +1,57 @@
 name: HKRE Scheduled Scraper
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     env:
-      GOOGLE_CREDS_JSON: ${{ secrets.GOOGLE_CREDS_JSON }}
+      # OAuth client JSON (base64 or plain JSON string)
       GOOGLE_OAUTH_JSON: ${{ secrets.GOOGLE_OAUTH_JSON }}
-      GOOGLE_TOKEN_PICKLE_B64: ${{ secrets.GOOGLE_TOKEN_PICKLE_B64 }}
+      # Base64 of token.json generated locally after first auth
+      GOOGLE_TOKEN_JSON_B64: ${{ secrets.GOOGLE_TOKEN_JSON_B64 }}
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Install system dependencies (Java + Xvfb + Chrome deps)
         run: |
-          sudo apt update
-          sudo apt install -y google-chrome-stable
-          sudo apt install -y unzip xvfb libxi6 libnss3 libxss1 libindicator7 fonts-liberation libatk-bridge2.0-0 libgtk-3-0
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jre-headless xvfb unzip \
+            libnss3 libgconf-2-4 libxi6 libxss1 libatk-bridge2.0-0 libgtk-3-0 \
+            fonts-liberation
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Decode and write Google service account credentials
+      - name: Seed token.json from secret (for headless OAuth in CI)
+        if: env.GOOGLE_TOKEN_JSON_B64 != ''
         run: |
-          echo "$GOOGLE_CREDS_JSON" | base64 --decode > service_account.json
+          echo "$GOOGLE_TOKEN_JSON_B64" | base64 --decode > token.json
 
-      - name: Decode and write OAuth credentials and token
+      - name: Verify Tabula JAR exists
         run: |
-          echo "$GOOGLE_OAUTH_JSON" | base64 --decode > oauth_credentials.json
-          echo "$GOOGLE_TOKEN_PICKLE_B64" | base64 --decode > token.pickle
+          test -f convert_csv/tabula-1.0.2-jar-with-dependencies.jar || {
+            echo "Tabula JAR missing at convert_csv/tabula-1.0.2-jar-with-dependencies.jar"
+            echo "Add the JAR to the repo (path must match your wrapper)."
+            exit 1
+          }
 
-      - name: Run main script
+      - name: Run scraper
+        # if your script needs a display for Selenium + Chrome
         run: xvfb-run -a python main.py
