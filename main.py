@@ -412,22 +412,22 @@ if __name__ == "__main__":
     folder_id = create_drive_folder(new_folder_name, parent_id=parent_folder_id)
 
     # Create a new drive folder for t18ms
-    t18ms = create_drive_folder('t18m files', parent_id=folder_id)
+    # t18ms = create_drive_folder('t18m files', parent_id=folder_id)
 
-    j = 165
+    j = 1
     
 
     # Begin Scrape for t18m
-    update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
-    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
-    main(target_web, "t18m", t18ms, j)
-    update_log(docs, f"finished t18m\n\n")
+    # update_log(docs, f"Date of Scrape: {today_date}\nFor t18m\n\n")
+    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential_t18m.htm"
+    # main(target_web, "t18m", t18ms, j)
+    # update_log(docs, f"finished t18m\n\n")
 
     # Create a new drive folder for non-t18ms
-    # non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
+    non_t18ms = create_drive_folder('non-t18m files', parent_id=folder_id)
 
     # # Begin Scrape for non-t18m
-    # update_log(docs, f"For non-t18m\n\n")
-    # target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    # main(target_web, "non-t18m", non_t18ms)
-    # update_log(docs, "finished non-t18m and automation")
+    update_log(docs, f"For non-t18m\n\n")
+    target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
+    main(target_web, "non-t18m", non_t18ms)
+    update_log(docs, "finished non-t18m and automation")
