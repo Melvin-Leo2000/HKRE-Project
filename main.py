@@ -429,5 +429,5 @@ if __name__ == "__main__":
     # # Begin Scrape for non-t18m
     update_log(docs, f"For non-t18m\n\n")
     target_web = "https://www.srpe.gov.hk/opip/disclaimer_index_for_all_residential.htm" # Target web URL
-    main(target_web, "non-t18m", non_t18ms)
+    main(target_web, "non-t18m", non_t18ms, j)
     update_log(docs, "finished non-t18m and automation")
