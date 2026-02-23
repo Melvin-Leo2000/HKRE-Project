@@ -1,9 +1,22 @@
-selenium
-selenium-stealth
-gspread
-pandas
-python-dotenv
-google-api-python-client
-google-auth
-google-auth-httplib2
-google-auth-oauthlib
+# HKRE App dependencies. Python 3.9+. Java required separately for Tabula (PDF→CSV).
+
+# Web Scraping
+selenium>=4.14.0
+selenium-stealth>=1.0.6
+
+# Data Processing
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Google APIs
+google-api-python-client>=2.176.0
+google-auth>=2.40.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+gspread>=6.1.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Environment Variables
+python-dotenv>=1.0.0
