@@ -407,7 +407,7 @@ def process_single_property(
     if only_metadata_changed:
         driver.back()
         elapsed = (time.time() - start_time) / 60
-        update_log(docs, f"finished devm {row_index} (no substantive change, rt_date/rt_note only) in {elapsed:.2f} min\n\n")
+        update_log(docs, f"finished devm {row_index} in {elapsed:.2f} min\n\n")
         return False, driver
     
     # Log new or updated property
