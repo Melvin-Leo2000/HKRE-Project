@@ -255,22 +255,22 @@ def process_property_pdfs(
     docs,
     missing_fields=None,
     devm_nolines=None,
+    already_uploaded=None,
 ):
     """
     Download and process PDFs for a property.
-    
+
     PDF dicts are keyed by cleaned text value (e.g. '1350KB30 Jun 2014' → url).
-    
+
     If missing_fields is None, download all PDFs (new property).
     Otherwise, look up each missing field's text value in devm_nolines and download
     only the specific PDF whose text key matches.
-    
-    For example, if only po2_text is missing, we get devm_nolines['po2_text'] →
-    '1350KB30 Jun 2014', find that key in pdfs['price_orders_pdf'], and download
-    only that one PDF.
+
+    already_uploaded: optional set of text keys already uploaded (for this property).
+    On retry after timeout we only download PDFs not in this set (resume where we left off).
     """
     if missing_fields is None:
-        # New property: download everything
+        # New property: download everything (minus already_uploaded on retry)
         sb_pdfs = pdfs['sales_brochure_pdf']
         rt_pdfs = pdfs['register_of_transactions_pdf']
         po_pdfs = pdfs['price_orders_pdf']
@@ -298,37 +298,47 @@ def process_property_pdfs(
               f"sb={len(sb_pdfs)}/{len(pdfs['sales_brochure_pdf'])}, "
               f"rt={len(rt_pdfs)}/{len(pdfs['register_of_transactions_pdf'])}, "
               f"po={len(po_pdfs)}/{len(pdfs['price_orders_pdf'])}")
-    
+
+    # Resume: skip PDFs already uploaded (on retry after timeout)
+    if already_uploaded:
+        sb_pdfs = {k: v for k, v in sb_pdfs.items() if k not in already_uploaded}
+        rt_pdfs = {k: v for k, v in rt_pdfs.items() if k not in already_uploaded}
+        po_pdfs = {k: v for k, v in po_pdfs.items() if k not in already_uploaded}
+        print(f"[DEBUG] Resuming: skipping {len(already_uploaded)} already-uploaded PDF(s)")
+
     # Download filtered sales brochure PDFs
     if sb_pdfs:
         timeout_download = download_pdf(
             driver, sb_pdfs, sales_brochure_files_dir,
             property_folder_id, drive_service, prices_folder_id,
             transactions_folder_id, development_name, version, docs,
+            already_uploaded=already_uploaded,
         )
         if timeout_download:
             return True
-    
+
     # Download register of transactions PDFs
     if rt_pdfs:
         timeout_download = download_pdf(
             driver, rt_pdfs, register_of_transactions_files_dir,
             property_folder_id, drive_service, prices_folder_id,
             transactions_folder_id, development_name, version, docs,
+            already_uploaded=already_uploaded,
         )
         if timeout_download:
             return True
-    
+
     # Download filtered price orders PDFs
     if po_pdfs:
         timeout_download = download_pdf(
             driver, po_pdfs, price_lists_files_dir,
             property_folder_id, drive_service, prices_folder_id,
             transactions_folder_id, development_name, version, docs,
+            already_uploaded=already_uploaded,
         )
         if timeout_download:
             return True
-    
+
     return False
 
 
@@ -360,6 +370,7 @@ def process_single_property(
     version,
     docs,
     cached_folder_ids,
+    already_uploaded_pdfs,
 ):
     """
     Process a single property: extract data, check database, download PDFs.
@@ -425,7 +436,8 @@ def process_single_property(
     else:
         property_folder_id = create_drive_folder(devm_nolines['name'], parent_id=run_folder_id)
         cached_folder_ids[devm_nolines['name']] = property_folder_id
-    
+
+    # Resume: only download PDFs not yet uploaded (on retry after timeout)
     timeout_occurred = process_property_pdfs(
         driver=driver,
         pdfs=pdfs,
@@ -441,6 +453,7 @@ def process_single_property(
         docs=docs,
         missing_fields=missing_fields,
         devm_nolines=devm_nolines,
+        already_uploaded=already_uploaded_pdfs,
     )
     
     # Restart browser if timeout occurred
@@ -455,9 +468,10 @@ def process_single_property(
     
     # Update database with new property data
     insert_new_data(sheet, devm)
-    
-    # Clear cached folder since property completed successfully
+
+    # Clear cached folder and uploaded-PDF set since property completed successfully
     cached_folder_ids.pop(devm_nolines['name'], None)
+    already_uploaded_pdfs.clear()
     
     # Return to listing page
     driver.back()

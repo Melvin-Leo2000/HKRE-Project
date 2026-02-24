@@ -236,12 +236,13 @@ def download_pdf(
     development_name,
     version,
     docs,
+    already_uploaded=None,
 ):
     """
     Download PDFs from URLs, upload to Google Drive, and convert to CSV if applicable.
-    
-    This is the main orchestrator function that processes multiple PDFs.
-    Download decision is now based on property-level changes detected in devm t18m database.
+
+    If already_uploaded is a set (mutable), we add each successfully processed PDF's
+    text key to it so that on retry we can skip them (resume where we left off).
     """
     # Configure download behavior
     params = {
@@ -252,7 +253,7 @@ def download_pdf(
 
     timeout_download = False
 
-    for idx, (_text_key, url) in enumerate(pdf.items(), start=1):
+    for idx, (text_key, url) in enumerate(pdf.items(), start=1):
         filename = filename_from_url(url)
         file_path = os.path.join(dir, filename)
 
@@ -280,6 +281,10 @@ def download_pdf(
             )
             timeout_download = True
             break
+
+        # Record successful upload so we skip this PDF on retry (resume)
+        if success and already_uploaded is not None:
+            already_uploaded.add(text_key)
 
         # Add delay between downloads to reduce API stress
         time.sleep(3)

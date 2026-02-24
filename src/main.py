@@ -71,7 +71,8 @@ def main(target_web, version, run_folder_id, j):
     end = len(el_list)
     tl_loop = time.time()
     cached_folder_ids = {}  # Cache folder IDs to avoid duplicates on timeout retries
-    
+    already_uploaded_pdfs = set()  # PDF text keys already uploaded this run; cleared on success, resume on retry
+
     # Process each property in the listing
     while j <= end:
         try:
@@ -94,6 +95,7 @@ def main(target_web, version, run_folder_id, j):
                 version=version,
                 docs=docs,
                 cached_folder_ids=cached_folder_ids,
+                already_uploaded_pdfs=already_uploaded_pdfs,
             )
             
             # If timeout occurred, driver was already restarted in process_single_property
@@ -148,7 +150,7 @@ if __name__ == "__main__":
     # ============================================================================
     # Scrape t18m properties
     # ============================================================================
-    main(T18M_URL, "t18m", t18ms_folder_id, j=1)
+    main(T18M_URL, "t18m", t18ms_folder_id, j=185)
     
     update_log(docs, f"finished t18m\n\n")
     
